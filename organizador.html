@@ -490,7 +490,7 @@ function cargarInfoTorneoActivo() {
   });
 }
 
-function iniciarNoche() {
+async function iniciarNoche() {
   db.ref('torneo').once('value', async snap => {
     const t = snap.val();
     if(!t||!t.activo) { alert('No hay torneo activo. Iniciá uno nuevo primero.'); return; }
@@ -1219,7 +1219,7 @@ function cerrarPodio() {
   if(podioCallback) { podioCallback(); podioCallback=null; }
 }
 
-function distribuirBolsa(palGanador) {
+async function distribuirBolsa(palGanador) {
   liberarWakeLock();
   db.ref('torneo/estadoCarrera').remove();
   db.ref('torneo/carreraEnVivo').remove();
