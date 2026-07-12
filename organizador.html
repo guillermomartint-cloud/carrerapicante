@@ -1472,6 +1472,11 @@ function reiniciarTorneo() {
   document.getElementById('pantalla-setup').style.display='block';
   document.getElementById('pantalla-carrera').style.display='none';
 }
+// ── VELOCIDAD ──
+let velocidadMs = 900;
+function getVelocidad(){ return velocidadMs; }
+
+
 // ── AUDIO ENGINE ──
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
 let audioCtx = null;
