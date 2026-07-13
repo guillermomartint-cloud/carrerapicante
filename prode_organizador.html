@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🏇 Prode Caballos — ORGANIZADOR</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',sans-serif;background:#1b4d3e;color:#fff;padding:10px;min-height:100vh;}
+h1{font-size:19px;color:#f1c40f;text-align:center;margin-bottom:10px;text-shadow:2px 2px 4px rgba(0,0,0,0.5);}
+.panel{background:rgba(0,0,0,0.45);border:1px solid #f1c40f;border-radius:10px;padding:12px;margin-bottom:10px;}
+.panel h2{color:#f1c40f;font-size:14px;margin-bottom:10px;}
+label{font-size:12px;font-weight:bold;display:block;margin-bottom:3px;}
+input,select{padding:6px 8px;border-radius:6px;border:none;font-size:13px;font-weight:bold;background:#fff;color:#333;width:100%;}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;}
+.col{flex:1;min-width:100px;}
+button{padding:9px 16px;border:none;border-radius:6px;cursor:pointer;font-weight:bold;font-size:13px;box-shadow:0 3px 5px rgba(0,0,0,0.3);white-space:nowrap;}
+.btn-verde{background:#27ae60;color:#fff;}
+.btn-naranja{background:#e67e22;color:#fff;}
+.btn-rojo{background:#c0392b;color:#fff;}
+.btn-gris{background:#7f8c8d;color:#fff;}
+.btn-azul{background:#2980b9;color:#fff;}
+.btn-morado{background:#8e44ad;color:#fff;}
+button:disabled{background:#bdc3c7!important;color:#7f8c8d;cursor:not-allowed;}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold;}
+.badge-verde{background:#27ae60;}
+.badge-naranja{background:#e67e22;}
+.badge-rojo{background:#c0392b;}
+.badge-gris{background:#7f8c8d;}
+.badge-azul{background:#2980b9;}
+
+/* CARRERAS TABS */
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px;}
+.tab-btn{padding:6px 12px;border:none;border-radius:6px 6px 0 0;cursor:pointer;font-size:12px;font-weight:bold;background:#243342;color:#aaa;}
+.tab-btn.active{background:#f1c40f;color:#000;}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+
+/* APUESTAS LIMBO */
+.apuesta-row{display:flex;align-items:center;justify-content:space-between;padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.08);font-size:13px;}
+.apuesta-row:last-child{border-bottom:none;}
+.apuesta-palo{font-size:18px;margin-right:6px;}
+.palo-btn-resultado{padding:8px 14px;border:none;border-radius:6px;cursor:pointer;font-size:16px;font-weight:bold;flex:1;margin:3px;}
+.palo-btn-resultado.selected{box-shadow:0 0 0 3px #f1c40f;}
+
+/* RANKING */
+.ranking-row{display:flex;align-items:center;gap:8px;padding:6px;border-bottom:1px solid rgba(255,255,255,0.08);font-size:13px;}
+.ranking-pos{font-size:16px;width:28px;text-align:center;}
+.ranking-nombre{flex:1;font-weight:bold;}
+.ranking-saldo{color:#f1c40f;font-weight:bold;font-size:14px;}
+.ranking-diff{font-size:11px;}
+.diff-pos{color:#2ecc71;}
+.diff-neg{color:#e74c3c;}
+
+/* QR */
+#qrcode canvas{border-radius:6px;}
+.link-txt{font-size:10px;color:#f1c40f;word-break:break-all;text-align:center;margin-top:4px;}
+
+/* COPEMAN */
+.copeman-toggle{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+.copeman-palo{padding:8px 12px;border:2px solid transparent;border-radius:6px;cursor:pointer;font-size:14px;background:rgba(255,255,255,0.1);text-align:center;}
+.copeman-palo.sel{border-color:#f1c40f;background:rgba(241,196,15,0.2);}
+
+.estado-carrera{text-align:center;padding:6px;border-radius:6px;font-size:13px;font-weight:bold;margin-bottom:8px;}
+.estado-abierta{background:rgba(39,174,96,0.3);border:1px solid #27ae60;}
+.estado-cerrada{background:rgba(127,140,141,0.3);border:1px solid #7f8c8d;}
+.estado-corrida{background:rgba(241,196,15,0.2);border:1px solid #f1c40f;}
+</style>
+</head>
+<body>
+<h1>🏇 Prode Caballos — ORGANIZADOR</h1>
+
+<!-- SETUP -->
+<div id="pantalla-setup">
+  <div class="panel">
+    <h2>⚙️ Nueva Jornada</h2>
+    <div class="row" style="margin-bottom:8px;">
+      <div class="col"><label>Nombre</label><input id="nombre-jornada" value="Jornada 1" style="width:100%;"></div>
+      <div class="col" style="max-width:100px;"><label>Carreras</label>
+        <select id="num-carreras" style="width:100%;">
+          <option value="3">3</option><option value="4">4</option>
+          <option value="5" selected>5</option><option value="6">6</option>
+          <option value="7">7</option><option value="8">8</option>
+        </select>
+      </div>
+    </div>
+    <div class="row" style="margin-bottom:10px;">
+      <div class="col"><label>Saldo inicial por jugador ($)</label><input id="saldo-inicial" type="number" value="100" min="10" step="10" style="width:100%;"></div>
+      <div class="col"><label>Apuesta mínima ($)</label><input id="apuesta-min" type="number" value="10" min="1" step="5" style="width:100%;"></div>
+    </div>
+    <div class="row" style="gap:8px;">
+      <button class="btn-verde" onclick="iniciarJornada()" style="flex:1;">🚀 Iniciar Jornada</button>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>📱 Link jugadores</h2>
+    <div id="qrcode-setup" style="display:flex;justify-content:center;margin-bottom:6px;"></div>
+    <div class="link-txt" id="link-txt-setup"></div>
+  </div>
+</div>
+
+<!-- JORNADA EN CURSO -->
+<div id="pantalla-jornada" style="display:none;">
+
+  <!-- HEADER -->
+  <div class="panel" style="padding:8px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+      <div>
+        <span id="nombre-jornada-display" style="font-weight:bold;color:#f1c40f;font-size:15px;"></span>
+        <span id="estado-jornada-badge" class="badge badge-verde" style="margin-left:6px;">En curso</span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn-gris" onclick="verQR()" style="font-size:11px;padding:6px 10px;">📱 QR</button>
+        <button class="btn-rojo" onclick="cerrarJornada()" style="font-size:11px;padding:6px 10px;">🏁 Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABS CARRERAS -->
+  <div class="panel" style="padding:8px;">
+    <div class="tabs" id="tabs-carreras"></div>
+
+    <!-- CARRERA PANEL -->
+    <div id="carrera-panels"></div>
+  </div>
+
+  <!-- LIMBO APUESTAS -->
+  <div class="panel">
+    <h2>👁️ Apuestas en tiempo real</h2>
+    <div id="limbo-container">
+      <p style="color:#aaa;font-size:13px;text-align:center;">Sin apuestas aún...</p>
+    </div>
+  </div>
+
+  <!-- RANKING -->
+  <div class="panel">
+    <h2>🏆 Ranking</h2>
+    <div id="ranking-container"></div>
+  </div>
+
+  <!-- QR FLOTANTE -->
+  <div id="qr-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center;flex-direction:column;gap:12px;">
+    <div style="background:#1b4d3e;border:2px solid #f1c40f;border-radius:12px;padding:20px;text-align:center;">
+      <h2 style="color:#f1c40f;margin-bottom:10px;">📱 Jugadores entran acá</h2>
+      <div id="qrcode-jornada"></div>
+      <div class="link-txt" id="link-txt-jornada" style="margin-top:8px;max-width:260px;"></div>
+      <button class="btn-gris" onclick="document.getElementById('qr-modal').style.display='none'" style="margin-top:12px;width:100%;">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyAZNhyoi7nWEE1NkS-bK_A3acX_GrK3sdk",
+  authDomain: "carrera-de-caballos-8ac3f.firebaseapp.com",
+  databaseURL: "https://carrera-de-caballos-8ac3f-default-rtdb.firebaseio.com",
+  projectId: "carrera-de-caballos-8ac3f",
+  storageBucket: "carrera-de-caballos-8ac3f.firebasestorage.app",
+  messagingSenderId: "970497320883",
+  appId: "1:970497320883:web:3e32bab2933a592d1c8dc6"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+const PALOS = {
+  corazon:  {nombre:'Corazones', emoji:'♥️', color:'#e74c3c'},
+  diamante: {nombre:'Diamantes', emoji:'♦️', color:'#e67e22'},
+  trebol:   {nombre:'Tréboles',  emoji:'♣️', color:'#2ecc71'},
+  espada:   {nombre:'Espadas',   emoji:'♠️', color:'#95a5a6'},
+};
+const MULTIPLICADOR = 2.5;
+
+let jornadaData = null;
+let jugadoresData = {};
+let apuestasData = {};
+let carreraActiva = 1;
+
+// ── SETUP QR ──
+function setupQR() {
+  const url = window.location.href.replace('prode_organizador','prode_jugador');
+  document.getElementById('link-txt-setup').innerText = url;
+  document.getElementById('qrcode-setup').innerHTML = '';
+  new QRCode(document.getElementById('qrcode-setup'), {text:url, width:140, height:140, correctLevel:QRCode.CorrectLevel.M});
+}
+setupQR();
+
+// ── INICIAR JORNADA ──
+function iniciarJornada() {
+  const nombre = document.getElementById('nombre-jornada').value || 'Jornada 1';
+  const numCarreras = parseInt(document.getElementById('num-carreras').value);
+  const saldoInicial = parseInt(document.getElementById('saldo-inicial').value) || 100;
+  const apuestaMin = parseInt(document.getElementById('apuesta-min').value) || 10;
+
+  const carreras = {};
+  for(let i=1;i<=numCarreras;i++) {
+    carreras[i] = {estado:'abierta', ganador:null, copeman:null};
+  }
+
+  db.ref('prode').set({
+    nombre, numCarreras, saldoInicial, apuestaMin,
+    activo:true, carreraActiva:1, carreras
+  }).then(() => {
+    db.ref('prode_jugadores').remove();
+    db.ref('prode_apuestas').remove();
+    mostrarJornada();
+  });
+}
+
+function mostrarJornada() {
+  document.getElementById('pantalla-setup').style.display = 'none';
+  document.getElementById('pantalla-jornada').style.display = 'block';
+  escucharDatos();
+  generarQRJornada();
+}
+
+function generarQRJornada() {
+  const url = window.location.href.replace('prode_organizador','prode_jugador');
+  document.getElementById('link-txt-jornada').innerText = url;
+  document.getElementById('qrcode-jornada').innerHTML = '';
+  new QRCode(document.getElementById('qrcode-jornada'), {text:url, width:160, height:160, correctLevel:QRCode.CorrectLevel.M});
+}
+
+function verQR() {
+  document.getElementById('qr-modal').style.display = 'flex';
+}
+
+// ── ESCUCHAR DATOS ──
+function escucharDatos() {
+  db.ref('prode').on('value', snap => {
+    jornadaData = snap.val();
+    if(!jornadaData) return;
+    document.getElementById('nombre-jornada-display').innerText = jornadaData.nombre;
+    renderTabs();
+  });
+  db.ref('prode_jugadores').on('value', snap => {
+    jugadoresData = snap.val() || {};
+    renderRanking();
+    renderLimbo();
+  });
+  db.ref('prode_apuestas').on('value', snap => {
+    apuestasData = snap.val() || {};
+    renderLimbo();
+    renderTabs();
+  });
+}
+
+// ── TABS ──
+function renderTabs() {
+  if(!jornadaData) return;
+  const tabsEl = document.getElementById('tabs-carreras');
+  const panelsEl = document.getElementById('carrera-panels');
+  tabsEl.innerHTML = '';
+  panelsEl.innerHTML = '';
+
+  for(let i=1;i<=jornadaData.numCarreras;i++) {
+    const c = jornadaData.carreras?.[i] || {estado:'abierta'};
+    const btn = document.createElement('button');
+    btn.className = 'tab-btn' + (i===carreraActiva?' active':'');
+    btn.innerHTML = `C${i} <span class="badge ${c.estado==='corrida'?'badge-gris':c.estado==='cerrada'?'badge-rojo':'badge-verde'}">${c.estado==='corrida'?'✓':c.estado==='cerrada'?'🔒':'🟢'}</span>`;
+    btn.onclick = () => { carreraActiva=i; renderTabs(); };
+    tabsEl.appendChild(btn);
+
+    const panel = document.createElement('div');
+    panel.className = 'tab-content' + (i===carreraActiva?' active':'');
+    panel.innerHTML = renderCarreraPanel(i, c);
+    panelsEl.appendChild(panel);
+  }
+}
+
+function renderCarreraPanel(num, carrera) {
+  const apCarrera = apuestasData[`carrera_${num}`] || {};
+  const totalPozo = Object.values(apCarrera).reduce((s,a)=>s+(a.monto||0),0);
+  const apostadores = Object.keys(apCarrera).length;
+  const totalJug = Object.keys(jugadoresData).length;
+
+  let estadoHtml = '';
+  if(carrera.estado==='abierta') estadoHtml = '<div class="estado-carrera estado-abierta">🟢 ABIERTA — Jugadores pueden apostar</div>';
+  else if(carrera.estado==='cerrada') estadoHtml = '<div class="estado-carrera estado-cerrada">🔒 CERRADA — Sin más apuestas</div>';
+  else estadoHtml = `<div class="estado-carrera estado-corrida">✅ CORRIDA — Ganó: ${PALOS[carrera.ganador]?.emoji||'?'} ${PALOS[carrera.ganador]?.nombre||'?'}${carrera.copeman?` + Copeman en ${PALOS[carrera.copeman]?.emoji||''} ${PALOS[carrera.copeman]?.nombre||''}`:''}</div>`;
+
+  // Resumen por palo
+  let resumenPalos = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;">';
+  Object.entries(PALOS).forEach(([key,p]) => {
+    const apostadoresAlPalo = Object.values(apCarrera).filter(a=>a.palo===key);
+    const montoAlPalo = apostadoresAlPalo.reduce((s,a)=>s+(a.monto||0),0);
+    resumenPalos += `<div style="flex:1;min-width:70px;background:rgba(0,0,0,0.3);border-radius:6px;padding:6px;text-align:center;border:1px solid rgba(255,255,255,0.1);">
+      <div style="font-size:20px;">${p.emoji}</div>
+      <div style="font-size:11px;color:#aaa;">${apostadoresAlPalo.length} jug.</div>
+      <div style="font-size:12px;color:#f1c40f;font-weight:bold;">$${montoAlPalo}</div>
+    </div>`;
+  });
+  resumenPalos += '</div>';
+
+  let botonesHtml = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">';
+  if(carrera.estado==='abierta') {
+    botonesHtml += `<button class="btn-rojo" onclick="cerrarCarrera(${num})" style="flex:1;">🔒 Cerrar apuestas</button>`;
+  }
+  if(carrera.estado==='cerrada') {
+    botonesHtml += `<button class="btn-verde" onclick="abrirCarrera(${num})" style="flex:1;font-size:11px;">🔓 Reabrir</button>`;
+    botonesHtml += `<button class="btn-naranja" onclick="mostrarResultado(${num})" style="flex:2;">🏁 Cargar resultado</button>`;
+  }
+  if(carrera.estado==='corrida') {
+    botonesHtml += `<button class="btn-gris" onclick="verDetalleCarrera(${num})" style="flex:1;font-size:11px;">📊 Ver detalle</button>`;
+  }
+  botonesHtml += '</div>';
+
+  // Resultado form (hidden by default)
+  const resultadoForm = `
+  <div id="form-resultado-${num}" style="display:none;margin-top:10px;background:rgba(0,0,0,0.3);border-radius:8px;padding:10px;">
+    <div style="font-size:13px;font-weight:bold;color:#f1c40f;margin-bottom:8px;">¿Qué palo ganó?</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+      ${Object.entries(PALOS).map(([key,p])=>`
+        <button class="palo-btn-resultado" id="res-${num}-${key}" onclick="selResultado(${num},'${key}')"
+          style="background:${p.color};color:#fff;border-radius:8px;flex:1;min-width:60px;">
+          ${p.emoji}<br><span style="font-size:11px;">${p.nombre}</span>
+        </button>`).join('')}
+    </div>
+    <div style="font-size:13px;font-weight:bold;color:#9b59b6;margin-bottom:6px;">🎁 ¿Salió Copeman? (opcional)</div>
+    <div class="copeman-toggle" id="copeman-toggle-${num}">
+      <div class="copeman-palo" onclick="selCopeman(${num},null)" id="cop-${num}-none" style="border-color:#f1c40f;background:rgba(241,196,15,0.2);">❌ No salió</div>
+      ${Object.entries(PALOS).map(([key,p])=>`
+        <div class="copeman-palo" onclick="selCopeman(${num},'${key}')" id="cop-${num}-${key}">${p.emoji} ${p.nombre}</div>`).join('')}
+    </div>
+    <button class="btn-verde" onclick="confirmarResultado(${num})" style="width:100%;margin-top:10px;" id="btn-confirmar-res-${num}" disabled>✅ Confirmar y distribuir</button>
+  </div>`;
+
+  return `
+    ${estadoHtml}
+    <div style="display:flex;gap:10px;font-size:12px;color:#aaa;margin-bottom:6px;">
+      <span>💰 Pozo: <strong style="color:#f1c40f;">$${totalPozo}</strong></span>
+      <span>👥 Apostaron: <strong>${apostadores}/${totalJug}</strong></span>
+    </div>
+    ${resumenPalos}
+    ${botonesHtml}
+    ${resultadoForm}`;
+}
+
+let resultadoSeleccionado = {};
+let copemanSeleccionado = {};
+
+function selResultado(num, palo) {
+  resultadoSeleccionado[num] = palo;
+  Object.keys(PALOS).forEach(k => {
+    const btn = document.getElementById(`res-${num}-${k}`);
+    if(btn) btn.style.opacity = k===palo?'1':'0.4';
+    if(btn) btn.style.transform = k===palo?'scale(1.05)':'scale(1)';
+  });
+  const confirmar = document.getElementById(`btn-confirmar-res-${num}`);
+  if(confirmar) confirmar.disabled = false;
+}
+
+function selCopeman(num, palo) {
+  copemanSeleccionado[num] = palo;
+  // Reset all
+  const noneEl = document.getElementById(`cop-${num}-none`);
+  if(noneEl) { noneEl.classList.remove('sel'); }
+  Object.keys(PALOS).forEach(k => {
+    const el = document.getElementById(`cop-${num}-${k}`);
+    if(el) el.classList.remove('sel');
+  });
+  // Select chosen
+  if(palo===null) { if(noneEl) noneEl.classList.add('sel'); }
+  else { const el = document.getElementById(`cop-${num}-${palo}`); if(el) el.classList.add('sel'); }
+}
+
+function mostrarResultado(num) {
+  const form = document.getElementById(`form-resultado-${num}`);
+  if(form) form.style.display = form.style.display==='none'?'block':'none';
+  // Default copeman = none
+  if(!copemanSeleccionado[num]) selCopeman(num, null);
+}
+
+async function confirmarResultado(num) {
+  const ganador = resultadoSeleccionado[num];
+  if(!ganador) { alert('Elegí el palo ganador'); return; }
+  const copeman = copemanSeleccionado[num] || null;
+
+  if(!confirm(`¿Confirmar resultado?\nGanador: ${PALOS[ganador].emoji} ${PALOS[ganador].nombre}${copeman?'\nCopeman: '+PALOS[copeman].emoji+' '+PALOS[copeman].nombre:''}\n\nSe distribuirán las ganancias automáticamente.`)) return;
+
+  const apCarrera = apuestasData[`carrera_${num}`] || {};
+  const updates = {};
+
+  // Calculate pot
+  const totalPozo = Object.values(apCarrera).reduce((s,a)=>s+(a.monto||0),0);
+  const ganadores = Object.entries(apCarrera).filter(([,a])=>a.palo===ganador);
+
+  // Copeman bonus: 10% extra del pozo al palo que salió después (el que ganó si coincide)
+  const copemanBonus = copeman===ganador ? Math.floor(totalPozo*0.10) : 0;
+  const pozoTotal = totalPozo + copemanBonus;
+
+  // Distribute to winners
+  const premioPorGanador = ganadores.length > 0 ? Math.floor(pozoTotal * MULTIPLICADOR / ganadores.length) : 0;
+
+  // Update all players
+  Object.entries(apCarrera).forEach(([jugId, ap]) => {
+    const jug = jugadoresData[jugId];
+    if(!jug) return;
+    const gano = ap.palo === ganador;
+    const diff = gano ? premioPorGanador - ap.monto : -ap.monto;
+    const nuevoSaldo = Math.max(0, (jug.saldo||0) + diff);
+    updates[`prode_jugadores/${jugId}/saldo`] = nuevoSaldo;
+    updates[`prode_jugadores/${jugId}/diff_${num}`] = diff;
+  });
+
+  // Mark carrera as corrida
+  updates[`prode/carreras/${num}/estado`] = 'corrida';
+  updates[`prode/carreras/${num}/ganador`] = ganador;
+  updates[`prode/carreras/${num}/copeman`] = copeman;
+  updates[`prode/carreras/${num}/totalPozo`] = pozoTotal;
+  updates[`prode/carreras/${num}/premioPorGanador`] = premioPorGanador;
+  updates[`prode/carreras/${num}/numGanadores`] = ganadores.length;
+
+  await db.ref().update(updates);
+  alert(`✅ Carrera ${num} cerrada!\n${ganadores.length > 0 ? `${ganadores.length} ganador(es) reciben $${premioPorGanador} cada uno` : 'Nadie acertó — el pozo se acumula'}${copemanBonus>0?`\n🎁 Copeman sumó $${copemanBonus} al pozo`:''}`);
+}
+
+function cerrarCarrera(num) {
+  db.ref(`prode/carreras/${num}/estado`).set('cerrada');
+}
+function abrirCarrera(num) {
+  db.ref(`prode/carreras/${num}/estado`).set('abierta');
+}
+
+// ── LIMBO ──
+function renderLimbo() {
+  if(!jornadaData) return;
+  const cont = document.getElementById('limbo-container');
+  const apCarrera = apuestasData[`carrera_${carreraActiva}`] || {};
+  const entries = Object.entries(apCarrera);
+
+  if(entries.length === 0) {
+    cont.innerHTML = `<p style="color:#aaa;font-size:13px;text-align:center;">Carrera ${carreraActiva} — Sin apuestas aún</p>`;
+    return;
+  }
+
+  let html = `<div style="font-size:12px;color:#aaa;margin-bottom:6px;">Carrera ${carreraActiva} — ${entries.length} apuesta(s)</div>`;
+  // Group by palo
+  Object.entries(PALOS).forEach(([paloKey, paloInfo]) => {
+    const apostadoresAlPalo = entries.filter(([,a])=>a.palo===paloKey);
+    if(apostadoresAlPalo.length===0) return;
+    html += `<div style="margin-bottom:8px;">
+      <div style="font-size:12px;font-weight:bold;color:${paloInfo.color};margin-bottom:4px;">${paloInfo.emoji} ${paloInfo.nombre} (${apostadoresAlPalo.length})</div>`;
+    apostadoresAlPalo.forEach(([jugId,ap]) => {
+      const jug = jugadoresData[jugId];
+      html += `<div class="apuesta-row">
+        <span>${jug?.nombre||'?'}</span>
+        <span style="color:#f1c40f;font-weight:bold;">$${ap.monto}</span>
+      </div>`;
+    });
+    html += '</div>';
+  });
+  cont.innerHTML = html;
+}
+
+// ── RANKING ──
+function renderRanking() {
+  const cont = document.getElementById('ranking-container');
+  if(!cont) return;
+  const lista = Object.entries(jugadoresData).sort((a,b)=>(b[1].saldo||0)-(a[1].saldo||0));
+  if(lista.length===0) { cont.innerHTML='<p style="color:#aaa;font-size:13px;text-align:center;">Sin jugadores aún</p>'; return; }
+  const medals = ['🥇','🥈','🥉'];
+  cont.innerHTML = lista.map(([id,j],i) => {
+    const diff = Object.keys(jornadaData?.carreras||{}).reduce((s,k)=>s+(j[`diff_${k}`]||0),0);
+    return `<div class="ranking-row">
+      <div class="ranking-pos">${medals[i]||i+1}</div>
+      <div class="ranking-nombre">${j.nombre}</div>
+      <div>
+        <div class="ranking-saldo">$${j.saldo||0}</div>
+        ${diff!==0?`<div class="ranking-diff ${diff>0?'diff-pos':'diff-neg'}">${diff>0?'+':''}$${diff}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function cerrarJornada() {
+  if(!confirm('¿Cerrar la jornada?')) return;
+  db.ref('prode/activo').set(false);
+  alert('🏁 Jornada cerrada. El ranking quedó guardado.');
+}
+
+function verDetalleCarrera(num) {
+  const c = jornadaData?.carreras?.[num];
+  if(!c) return;
+  alert(`Carrera ${num}\nGanador: ${PALOS[c.ganador]?.nombre}\nPozo: $${c.totalPozo}\nGanadores: ${c.numGanadores}\nPremio c/u: $${c.premioPorGanador}${c.copeman?'\nCopeman: '+PALOS[c.copeman]?.nombre:''}`);
+}
+
+// Auto-load if active session
+db.ref('prode/activo').once('value', snap => {
+  if(snap.val()) mostrarJornada();
+});
+</script>
+</body>
+</html>

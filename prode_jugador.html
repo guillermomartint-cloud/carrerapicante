@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🏇 Prode Caballos — JUGADOR</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',sans-serif;background:#1b4d3e;color:#fff;padding:12px;min-height:100vh;}
+h1{font-size:19px;color:#f1c40f;text-align:center;margin-bottom:10px;text-shadow:2px 2px 4px rgba(0,0,0,0.5);}
+.panel{background:rgba(0,0,0,0.45);border:1px solid #f1c40f;border-radius:10px;padding:12px;margin-bottom:10px;}
+.panel h2{color:#f1c40f;font-size:14px;margin-bottom:8px;}
+input{width:100%;padding:10px;border-radius:8px;border:none;font-size:16px;font-weight:bold;background:#fff;color:#333;margin-bottom:8px;}
+button{width:100%;padding:11px;border:none;border-radius:8px;cursor:pointer;font-weight:bold;font-size:14px;box-shadow:0 3px 5px rgba(0,0,0,0.3);margin-bottom:6px;}
+.btn-verde{background:#27ae60;color:#fff;}
+.btn-naranja{background:#e67e22;color:#fff;}
+.btn-gris{background:#7f8c8d;color:#fff;}
+button:disabled{background:#bdc3c7!important;color:#7f8c8d;cursor:not-allowed;}
+
+/* TABS */
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px;overflow-x:auto;}
+.tab-btn{padding:6px 10px;border:none;border-radius:6px 6px 0 0;cursor:pointer;font-size:12px;font-weight:bold;background:#243342;color:#aaa;white-space:nowrap;}
+.tab-btn.active{background:#f1c40f;color:#000;}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+
+/* PALO BUTTONS */
+.palo-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0;}
+.palo-card{border:3px solid transparent;border-radius:10px;padding:14px 8px;cursor:pointer;text-align:center;background:rgba(255,255,255,0.08);transition:all 0.2s;}
+.palo-card:hover{background:rgba(255,255,255,0.15);}
+.palo-card.selected{border-color:#f1c40f;background:rgba(241,196,15,0.15);transform:scale(1.03);}
+.palo-card.disabled{opacity:0.4;cursor:not-allowed;}
+.palo-emoji{font-size:28px;display:block;margin-bottom:4px;}
+.palo-nombre{font-size:12px;font-weight:bold;}
+.palo-apostadores{font-size:10px;color:#aaa;margin-top:2px;}
+
+/* SALDO */
+.saldo-display{font-size:32px;font-weight:bold;color:#f1c40f;text-align:center;margin:6px 0;}
+.saldo-sub{font-size:12px;color:#aaa;text-align:center;}
+
+/* SLIDER */
+.monto-display{font-size:24px;font-weight:bold;color:#f1c40f;text-align:center;margin:8px 0;}
+input[type=range]{width:100%;margin:6px 0;accent-color:#f1c40f;}
+
+/* ESTADO CARRERA */
+.estado-badge{display:inline-block;padding:3px 10px;border-radius:10px;font-size:12px;font-weight:bold;}
+.abierta{background:#27ae60;}
+.cerrada{background:#7f8c8d;}
+.corrida{background:#f1c40f;color:#000;}
+
+/* APUESTA CONFIRMADA */
+.apuesta-confirmada{background:rgba(39,174,96,0.2);border:1px solid #27ae60;border-radius:8px;padding:12px;text-align:center;margin:8px 0;}
+.apuesta-ganada{background:rgba(39,174,96,0.2);border:1px solid #27ae60;border-radius:8px;padding:12px;text-align:center;}
+.apuesta-perdida{background:rgba(231,76,60,0.15);border:1px solid #e74c3c;border-radius:8px;padding:12px;text-align:center;}
+
+/* LIMBO */
+.limbo-row{display:flex;align-items:center;justify-content:space-between;padding:5px 6px;border-bottom:1px solid rgba(255,255,255,0.07);font-size:13px;}
+.limbo-row:last-child{border-bottom:none;}
+.yo-marker{font-size:10px;color:#f1c40f;margin-left:4px;}
+
+/* RANKING */
+.rank-row{display:flex;align-items:center;gap:8px;padding:5px 6px;border-bottom:1px solid rgba(255,255,255,0.07);font-size:13px;}
+.rank-row:last-child{border-bottom:none;}
+.rank-yo{background:rgba(241,196,15,0.1);border-left:3px solid #f1c40f;}
+
+.anim-espera{font-size:40px;animation:girar 2s linear infinite;display:inline-block;}
+@keyframes girar{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+<h1>🏇 Prode Caballos</h1>
+<div id="app">
+  <div class="panel" style="text-align:center;padding:20px;">
+    <div class="anim-espera">🏇</div>
+    <p style="margin-top:10px;color:#aaa;">Conectando...</p>
+  </div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyAZNhyoi7nWEE1NkS-bK_A3acX_GrK3sdk",
+  authDomain: "carrera-de-caballos-8ac3f.firebaseapp.com",
+  databaseURL: "https://carrera-de-caballos-8ac3f-default-rtdb.firebaseio.com",
+  projectId: "carrera-de-caballos-8ac3f",
+  storageBucket: "carrera-de-caballos-8ac3f.firebasestorage.app",
+  messagingSenderId: "970497320883",
+  appId: "1:970497320883:web:3e32bab2933a592d1c8dc6"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+const PALOS = {
+  corazon:  {nombre:'Corazones', emoji:'♥️', color:'#e74c3c'},
+  diamante: {nombre:'Diamantes', emoji:'♦️', color:'#e67e22'},
+  trebol:   {nombre:'Tréboles',  emoji:'♣️', color:'#2ecc71'},
+  espada:   {nombre:'Espadas',   emoji:'♠️', color:'#95a5a6'},
+};
+const MULTIPLICADOR = 2.5;
+
+let jugadorId = localStorage.getItem('prode_jugadorId') || null;
+let jugadorNombre = localStorage.getItem('prode_jugadorNombre') || null;
+let jornadaData = null;
+let jugadoresData = {};
+let apuestasData = {};
+let tabActiva = 1;
+let palosSeleccionados = {};
+let montosSeleccionados = {};
+
+// Listeners
+db.ref('prode').on('value', snap => {
+  jornadaData = snap.val();
+  if(!jornadaData || !jornadaData.activo) { renderSinJornada(); return; }
+  if(!jugadorId || !jugadorNombre) renderRegistro();
+  else renderApp();
+});
+db.ref('prode_jugadores').on('value', snap => { jugadoresData = snap.val()||{}; renderApp && renderTabContent && renderTabContent(tabActiva); });
+db.ref('prode_apuestas').on('value', snap => { apuestasData = snap.val()||{}; renderApp && renderTabContent && renderTabContent(tabActiva); });
+
+function miSaldo() { return jugadoresData[jugadorId]?.saldo ?? jornadaData?.saldoInicial ?? 100; }
+function miApuesta(carrera) { return (apuestasData[`carrera_${carrera}`]||{})[jugadorId] || null; }
+
+function renderSinJornada() {
+  document.getElementById('app').innerHTML = `
+    <div class="panel" style="text-align:center;padding:20px;">
+      <div class="anim-espera">⏳</div>
+      <p style="margin-top:12px;font-size:15px;">No hay jornada activa.<br>Esperá que el organizador inicie una.</p>
+    </div>`;
+}
+
+function renderRegistro() {
+  document.getElementById('app').innerHTML = `
+    <div class="panel">
+      <h2>👋 ¡Bienvenido!</h2>
+      <p style="font-size:13px;color:#aaa;margin-bottom:10px;">${jornadaData.nombre} — ${jornadaData.numCarreras} carreras</p>
+      <input id="input-nombre" placeholder="Tu nombre" maxlength="20" style="font-size:17px;">
+      <button class="btn-verde" onclick="registrarse()">✅ Entrar</button>
+    </div>`;
+  setTimeout(()=>{ const el=document.getElementById('input-nombre'); if(el){ el.focus(); el.addEventListener('keydown',e=>{if(e.key==='Enter')registrarse();}); }},100);
+}
+
+function registrarse() {
+  const nombre = document.getElementById('input-nombre').value.trim();
+  if(!nombre){ alert('Ingresá tu nombre'); return; }
+  jugadorNombre = nombre;
+  jugadorId = 'pj_'+Date.now()+'_'+Math.random().toString(36).substr(2,5);
+  localStorage.setItem('prode_jugadorId', jugadorId);
+  localStorage.setItem('prode_jugadorNombre', jugadorNombre);
+  db.ref(`prode_jugadores/${jugadorId}`).set({
+    nombre, saldo: jornadaData.saldoInicial||100
+  }).then(()=>renderApp());
+}
+
+function renderApp() {
+  if(!jornadaData || !jugadorId || !jugadorNombre) return;
+  const saldo = miSaldo();
+  document.getElementById('app').innerHTML = `
+    <div class="panel" style="padding:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <strong style="font-size:15px;">${jugadorNombre}</strong>
+        <div style="color:#f1c40f;font-size:20px;font-weight:bold;">$${saldo}</div>
+      </div>
+      <div style="font-size:11px;color:#aaa;">${jornadaData.nombre}</div>
+    </div>
+
+    <div class="panel" style="padding:8px;">
+      <div class="tabs" id="tabs-jug"></div>
+      <div id="tab-content-jug"></div>
+    </div>
+
+    <div class="panel">
+      <h2>👁️ Apuestas de todos</h2>
+      <div id="limbo-jug"></div>
+    </div>
+
+    <div class="panel">
+      <h2>🏆 Ranking</h2>
+      <div id="ranking-jug"></div>
+    </div>`;
+
+  renderTabs();
+  renderLimbo();
+  renderRanking();
+}
+
+function renderTabs() {
+  if(!jornadaData) return;
+  const tabsEl = document.getElementById('tabs-jug');
+  if(!tabsEl) return;
+  tabsEl.innerHTML = '';
+  for(let i=1;i<=jornadaData.numCarreras;i++) {
+    const c = jornadaData.carreras?.[i]||{};
+    const miAp = miApuesta(i);
+    const btn = document.createElement('button');
+    btn.className = 'tab-btn'+(i===tabActiva?' active':'');
+    btn.innerHTML = `C${i} ${c.estado==='corrida'?'✓':miAp?'✅':''}`;
+    btn.onclick = ()=>{ tabActiva=i; renderTabs(); renderTabContent(i); renderLimbo(); renderRanking(); };
+    tabsEl.appendChild(btn);
+  }
+  renderTabContent(tabActiva);
+}
+
+function renderTabContent(num) {
+  const cont = document.getElementById('tab-content-jug');
+  if(!cont || !jornadaData) return;
+  const carrera = jornadaData.carreras?.[num] || {estado:'abierta'};
+  const miAp = miApuesta(num);
+  const saldo = miSaldo();
+  const apMin = jornadaData.apuestaMin || 10;
+  const apCarrera = apuestasData[`carrera_${num}`] || {};
+
+  // Count apostadores per palo
+  const contPalos = {};
+  Object.values(apCarrera).forEach(a=>{ contPalos[a.palo]=(contPalos[a.palo]||0)+1; });
+
+  if(carrera.estado==='corrida') {
+    // Show result
+    const ganador = carrera.ganador;
+    const gane = miAp?.palo === ganador;
+    const diff = jugadoresData[jugadorId]?.[`diff_${num}`];
+    cont.innerHTML = `
+      <div style="text-align:center;margin-bottom:10px;">
+        <span class="estado-badge corrida">✅ Corrida</span>
+      </div>
+      <div style="${gane?'background:rgba(39,174,96,0.2);border:1px solid #27ae60;':'background:rgba(231,76,60,0.15);border:1px solid #e74c3c;'}border-radius:8px;padding:12px;text-align:center;margin-bottom:8px;">
+        <div style="font-size:22px;">${PALOS[ganador]?.emoji||'?'}</div>
+        <div style="font-weight:bold;margin:4px 0;">Ganó ${PALOS[ganador]?.nombre||'?'}</div>
+        ${miAp?`<div style="font-size:13px;color:#aaa;">Apostaste a ${PALOS[miAp.palo]?.emoji} ${PALOS[miAp.palo]?.nombre}</div>`:'<div style="font-size:13px;color:#aaa;">No apostaste</div>'}
+        ${diff!==undefined?`<div style="font-size:20px;font-weight:bold;color:${diff>=0?'#2ecc71':'#e74c3c'};margin-top:6px;">${diff>=0?'+':''}$${diff}</div>`:''}
+        ${carrera.copeman?`<div style="font-size:12px;color:#9b59b6;margin-top:4px;">🎁 Copeman en ${PALOS[carrera.copeman]?.emoji} ${PALOS[carrera.copeman]?.nombre}</div>`:''}
+      </div>`;
+    return;
+  }
+
+  if(carrera.estado==='cerrada') {
+    cont.innerHTML = `
+      <div style="text-align:center;margin-bottom:8px;">
+        <span class="estado-badge cerrada">🔒 Cerrada</span>
+      </div>
+      ${miAp?`<div class="apuesta-confirmada">
+        <div style="font-size:20px;">${PALOS[miAp.palo]?.emoji}</div>
+        <div style="font-weight:bold;">${PALOS[miAp.palo]?.nombre}</div>
+        <div style="color:#f1c40f;font-size:18px;font-weight:bold;">$${miAp.monto}</div>
+        <div style="font-size:11px;color:#aaa;margin-top:4px;">Si ganás: +$${Math.floor(miAp.monto*(MULTIPLICADOR-1))} | Si perdés: -$${miAp.monto}</div>
+      </div>`:
+      '<p style="text-align:center;color:#aaa;font-size:13px;">No apostaste en esta carrera</p>'}`;
+    return;
+  }
+
+  // Abierta
+  if(miAp) {
+    // Already bet — show with option to change
+    cont.innerHTML = `
+      <div style="text-align:center;margin-bottom:8px;">
+        <span class="estado-badge abierta">🟢 Abierta</span>
+      </div>
+      <div class="apuesta-confirmada">
+        <div style="font-size:22px;">${PALOS[miAp.palo]?.emoji}</div>
+        <div style="font-weight:bold;font-size:16px;">${PALOS[miAp.palo]?.nombre}</div>
+        <div style="color:#f1c40f;font-size:20px;font-weight:bold;margin:6px 0;">$${miAp.monto}</div>
+        <div style="font-size:11px;color:#aaa;">Si ganás: +$${Math.floor(miAp.monto*(MULTIPLICADOR-1))} netos</div>
+      </div>
+      <button class="btn-gris" onclick="cambiarApuesta(${num})" style="font-size:12px;margin-top:4px;">✏️ Cambiar apuesta</button>`;
+    return;
+  }
+
+  // No bet yet — show betting UI
+  if(saldo < apMin) {
+    cont.innerHTML = `<p style="text-align:center;color:#e74c3c;padding:20px;">Sin saldo suficiente para apostar (mínimo $${apMin})</p>`;
+    return;
+  }
+
+  const selPalo = palosSeleccionados[num];
+  const selMonto = montosSeleccionados[num] || apMin;
+
+  cont.innerHTML = `
+    <div style="text-align:center;margin-bottom:8px;">
+      <span class="estado-badge abierta">🟢 Abierta</span>
+    </div>
+    <div style="font-size:12px;color:#aaa;margin-bottom:8px;">Saldo disponible: <strong style="color:#f1c40f;">$${saldo}</strong> · Ganás x${MULTIPLICADOR} si acertás</div>
+    <div class="palo-grid">
+      ${Object.entries(PALOS).map(([key,p])=>`
+        <div class="palo-card ${selPalo===key?'selected':''}" onclick="selPalo(${num},'${key}')">
+          <span class="palo-emoji">${p.emoji}</span>
+          <span class="palo-nombre">${p.nombre}</span>
+          <span class="palo-apostadores">${contPalos[key]||0} apostaron</span>
+        </div>`).join('')}
+    </div>
+    <div class="monto-display" id="monto-display-${num}">$${selMonto}</div>
+    <input type="range" id="slider-monto-${num}" min="${apMin}" max="${saldo}" step="${apMin}" value="${selMonto}"
+      oninput="actualizarMonto(${num},this.value)">
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:#aaa;margin-bottom:8px;">
+      <span>Mín: $${apMin}</span><span>Máx: $${saldo}</span>
+    </div>
+    ${selPalo?`<div style="font-size:12px;color:#aaa;text-align:center;margin-bottom:8px;">
+      Si ganás: <strong style="color:#2ecc71;">+$${Math.floor(selMonto*(MULTIPLICADOR-1))}</strong> netos &nbsp;|&nbsp; Si perdés: <strong style="color:#e74c3c;">-$${selMonto}</strong>
+    </div>`:''}
+    <button class="btn-naranja" id="btn-apostar-${num}" onclick="confirmarApuesta(${num})" ${!selPalo?'disabled':''}>
+      🎯 Confirmar Apuesta
+    </button>`;
+}
+
+function selPalo(carrera, palo) {
+  palosSeleccionados[carrera] = palo;
+  renderTabContent(carrera);
+}
+
+// Update limbo when tab changes (called from renderTabs)
+function onTabChange() {
+  renderLimbo();
+  renderRanking();
+}
+
+function actualizarMonto(carrera, val) {
+  montosSeleccionados[carrera] = parseInt(val);
+  const d = document.getElementById(`monto-display-${carrera}`);
+  if(d) d.innerText = '$'+val;
+}
+
+function confirmarApuesta(carrera) {
+  const palo = palosSeleccionados[carrera];
+  const monto = montosSeleccionados[carrera] || jornadaData?.apuestaMin || 10;
+  if(!palo){ alert('Elegí un palo'); return; }
+  db.ref(`prode_apuestas/carrera_${carrera}/${jugadorId}`).set({palo, monto})
+    .then(()=>renderTabContent(carrera));
+}
+
+function cambiarApuesta(carrera) {
+  const c = jornadaData?.carreras?.[carrera]||{};
+  if(c.estado!=='abierta'){ alert('La carrera ya está cerrada'); return; }
+  if(!confirm('¿Cambiar tu apuesta?')) return;
+  db.ref(`prode_apuestas/carrera_${carrera}/${jugadorId}`).remove()
+    .then(()=>{ delete palosSeleccionados[carrera]; renderTabContent(carrera); });
+}
+
+function renderLimbo() {
+  const cont = document.getElementById('limbo-jug');
+  if(!cont||!jornadaData) return;
+
+  // Only show limbo when carrera is cerrada or corrida
+  const estadoCarrera = jornadaData.carreras?.[tabActiva]?.estado || 'abierta';
+  if(estadoCarrera === 'abierta') {
+    cont.innerHTML = `<div style="text-align:center;padding:12px;">
+      <div style="font-size:28px;margin-bottom:6px;">🔒</div>
+      <p style="color:#aaa;font-size:13px;">Las apuestas se revelan cuando el organizador cierre la carrera.<br>¡Sin especular!</p>
+    </div>`;
+    return;
+  }
+
+  const apCarrera = apuestasData['carrera_'+tabActiva]||{};
+  const entries = Object.entries(apCarrera);
+  if(entries.length===0){ cont.innerHTML='<p style="color:#aaa;font-size:13px;text-align:center;">Sin apuestas en esta carrera</p>'; return; }
+
+  const totalPozo = entries.reduce((s,[,a])=>s+(a.monto||0),0);
+  let html = '<div style="font-size:11px;color:#aaa;margin-bottom:8px;">Carrera '+tabActiva+' — Pozo: <strong style="color:#f1c40f;">$'+totalPozo+'</strong></div>';
+
+  Object.entries(PALOS).forEach(([paloKey,paloInfo])=>{
+    const aps = entries.filter(([,a])=>a.palo===paloKey);
+    if(aps.length===0) return;
+    const montoTotal = aps.reduce((s,[,a])=>s+(a.monto||0),0);
+    html += '<div style="margin-bottom:10px;">';
+    html += '<div style="font-size:12px;font-weight:bold;color:'+paloInfo.color+';margin-bottom:4px;">'+paloInfo.emoji+' '+paloInfo.nombre+' — $'+montoTotal+'</div>';
+    aps.forEach(([jid,ap])=>{
+      const j = jugadoresData[jid];
+      const esYo = jid===jugadorId;
+      html += '<div class="limbo-row'+(esYo?' rank-yo':'')+'">'+
+        '<span>'+( j?.nombre||'?')+(esYo?' 👈':'')+'</span>'+
+        '<span style="color:#f1c40f;font-weight:bold;">$'+ap.monto+'</span>'+
+        '</div>';
+    });
+    html += '</div>';
+  });
+  cont.innerHTML = html;
+}
+
+function renderRanking() {
+  const cont = document.getElementById('ranking-jug');
+  if(!cont) return;
+  const saldoInicial = jornadaData?.saldoInicial || 100;
+  const lista = Object.entries(jugadoresData).sort((a,b)=>(b[1].saldo||0)-(a[1].saldo||0));
+  if(lista.length===0){ cont.innerHTML='<p style="color:#aaa;font-size:13px;text-align:center;">Sin jugadores aún</p>'; return; }
+  const medals=['🥇','🥈','🥉'];
+  cont.innerHTML = lista.map(([id,j],i)=>{
+    const diff = (j.saldo||0) - saldoInicial;
+    const diffStr = diff > 0
+      ? '<span style="color:#2ecc71;font-size:11px;">+$'+diff+'</span>'
+      : diff < 0
+      ? '<span style="color:#e74c3c;font-size:11px;">-$'+Math.abs(diff)+'</span>'
+      : '';
+    const esYo = id===jugadorId;
+    return '<div class="rank-row '+(esYo?'rank-yo':'')+'">'+
+      '<span style="font-size:14px;width:26px;">'+(medals[i]||i+1)+'</span>'+
+      '<span style="flex:1;font-weight:'+(esYo?'bold':'normal')+';">'+(j.nombre||'?')+(esYo?' 👈':'')+'</span>'+
+      '<div style="text-align:right;">'+
+        '<div style="color:#f1c40f;font-weight:bold;font-size:14px;">$'+(j.saldo||0)+'</div>'+
+        diffStr+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+</script>
+</body>
+</html>
