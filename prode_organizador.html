@@ -78,9 +78,9 @@ button:disabled{background:#bdc3c7!important;color:#7f8c8d;cursor:not-allowed;}
   <div class="panel">
     <h2>⚙️ Nueva Jornada</h2>
     <div class="row" style="margin-bottom:8px;">
-      <div class="col"><label>Nombre</label><input id="nombre-jornada" value="Jornada 1" style="width:100%;"></div>
-      <div class="col" style="max-width:100px;"><label>Carreras</label>
-        <select id="num-carreras" style="width:100%;">
+      <div class="col"><label>Nombre de la jornada</label><input id="nombre-jornada" value="Jornada 1" style="width:100%;"></div>
+      <div class="col" style="max-width:110px;"><label>Nº Carreras</label>
+        <select id="num-carreras" style="width:100%;" onchange="actualizarValoresCarreras()">
           <option value="3">3</option><option value="4">4</option>
           <option value="5" selected>5</option><option value="6">6</option>
           <option value="7">7</option><option value="8">8</option>
@@ -88,8 +88,13 @@ button:disabled{background:#bdc3c7!important;color:#7f8c8d;cursor:not-allowed;}
       </div>
     </div>
     <div class="row" style="margin-bottom:10px;">
-      <div class="col"><label>Saldo inicial por jugador ($)</label><input id="saldo-inicial" type="number" value="100" min="10" step="10" style="width:100%;"></div>
+      <div class="col"><label>Saldo inicial ($)</label><input id="saldo-inicial" type="number" value="100" min="10" step="10" style="width:100%;"></div>
       <div class="col"><label>Apuesta mínima ($)</label><input id="apuesta-min" type="number" value="10" min="1" step="5" style="width:100%;"></div>
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="margin-bottom:6px;">💰 Valor de bolsa por carrera</label>
+      <div style="font-size:11px;color:#aaa;margin-bottom:6px;">Cuánto aporta cada jugador al pozo en cada carrera (además de su apuesta personal)</div>
+      <div id="valores-carreras" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:6px;"></div>
     </div>
     <div class="row" style="gap:8px;">
       <button class="btn-verde" onclick="iniciarJornada()" style="flex:1;">🚀 Iniciar Jornada</button>
@@ -188,19 +193,41 @@ function setupQR() {
 setupQR();
 
 // ── INICIAR JORNADA ──
+function actualizarValoresCarreras() {
+  const n = parseInt(document.getElementById('num-carreras').value)||5;
+  const cont = document.getElementById('valores-carreras');
+  if(!cont) return;
+  cont.innerHTML = '';
+  for(let i=1;i<=n;i++) {
+    const existing = document.getElementById('valor-c-'+i);
+    const val = existing ? existing.value : (i===n?'50':'20');
+    cont.innerHTML += `<div style="text-align:center;">
+      <label style="font-size:11px;color:#f1c40f;">C${i}${i===n?' ⭐':''}</label>
+      <input id="valor-c-${i}" type="number" value="${val}" min="0" step="5"
+        style="width:100%;padding:5px;border-radius:5px;border:none;font-size:13px;font-weight:bold;
+        background:${i===n?'rgba(241,196,15,0.2)':'#fff'};color:${i===n?'#f1c40f':'#333'};text-align:center;">
+    </div>`;
+  }
+}
+
 function iniciarJornada() {
   const nombre = document.getElementById('nombre-jornada').value || 'Jornada 1';
   const numCarreras = parseInt(document.getElementById('num-carreras').value);
   const saldoInicial = parseInt(document.getElementById('saldo-inicial').value) || 100;
   const apuestaMin = parseInt(document.getElementById('apuesta-min').value) || 10;
 
+  const valoresCarreras = {};
+  for(let i=1;i<=numCarreras;i++) {
+    valoresCarreras[i] = parseInt(document.getElementById('valor-c-'+i)?.value)||20;
+  }
+
   const carreras = {};
   for(let i=1;i<=numCarreras;i++) {
-    carreras[i] = {estado:'abierta', ganador:null, copeman:null};
+    carreras[i] = {estado:'abierta', ganador:null, copeman:null, valorBolsa: valoresCarreras[i]};
   }
 
   db.ref('prode').set({
-    nombre, numCarreras, saldoInicial, apuestaMin,
+    nombre, numCarreras, saldoInicial, apuestaMin, valoresCarreras,
     activo:true, carreraActiva:1, carreras
   }).then(() => {
     db.ref('prode_jugadores').remove();
@@ -282,6 +309,7 @@ function renderCarreraPanel(num, carrera) {
   else estadoHtml = `<div class="estado-carrera estado-corrida">✅ CORRIDA — Ganó: ${PALOS[carrera.ganador]?.emoji||'?'} ${PALOS[carrera.ganador]?.nombre||'?'}${carrera.copeman?` + Copeman en ${PALOS[carrera.copeman]?.emoji||''} ${PALOS[carrera.copeman]?.nombre||''}`:''}</div>`;
 
   // Resumen por palo
+  const valorBolsaStr = carrera.valorBolsa ? `· Bolsa base: <strong style="color:#9b59b6;">$${carrera.valorBolsa} x jugador</strong>` : '';
   let resumenPalos = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;">';
   Object.entries(PALOS).forEach(([key,p]) => {
     const apostadoresAlPalo = Object.values(apCarrera).filter(a=>a.palo===key);
@@ -329,9 +357,10 @@ function renderCarreraPanel(num, carrera) {
 
   return `
     ${estadoHtml}
-    <div style="display:flex;gap:10px;font-size:12px;color:#aaa;margin-bottom:6px;">
-      <span>💰 Pozo: <strong style="color:#f1c40f;">$${totalPozo}</strong></span>
-      <span>👥 Apostaron: <strong>${apostadores}/${totalJug}</strong></span>
+    <div style="display:flex;gap:10px;font-size:12px;color:#aaa;margin-bottom:6px;flex-wrap:wrap;">
+      <span>💰 Pozo est.: <strong style="color:#f1c40f;">$${totalPozo}</strong></span>
+      <span>👥 <strong>${apostadores}/${totalJug}</strong> apostaron</span>
+      ${valorBolsaStr}
     </div>
     ${resumenPalos}
     ${botonesHtml}
@@ -383,11 +412,14 @@ async function confirmarResultado(num) {
   const apCarrera = apuestasData[`carrera_${num}`] || {};
   const updates = {};
 
-  // Calculate pot
-  const totalPozo = Object.values(apCarrera).reduce((s,a)=>s+(a.monto||0),0);
+  // Calculate pot: apuestas + bolsa base por jugador
+  const valorBolsaC = jornadaData?.carreras?.[num]?.valorBolsa || jornadaData?.valoresCarreras?.[num] || 0;
+  const numJug = Object.keys(jugadoresData).length;
+  const pozoBase = valorBolsaC * numJug;
+  const totalPozo = Object.values(apCarrera).reduce((s,a)=>s+(a.monto||0),0) + pozoBase;
   const ganadores = Object.entries(apCarrera).filter(([,a])=>a.palo===ganador);
 
-  // Copeman bonus: 10% extra del pozo al palo que salió después (el que ganó si coincide)
+  // Copeman bonus: 10% extra del pozo al palo que ganó si coincide
   const copemanBonus = copeman===ganador ? Math.floor(totalPozo*0.10) : 0;
   const pozoTotal = totalPozo + copemanBonus;
 
@@ -490,6 +522,7 @@ function verDetalleCarrera(num) {
 // Auto-load if active session
 db.ref('prode/activo').once('value', snap => {
   if(snap.val()) mostrarJornada();
+  else actualizarValoresCarreras(); // init setup fields
 });
 </script>
 </body>
